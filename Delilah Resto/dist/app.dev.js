@@ -9,11 +9,11 @@ var rateLimit = require('express-rate-limit');
 var bodyParser = require("body-parser"); // ver si esto va aca o en otro archivo, quizas va aparte y se exportan las funciones
 
 
-var _require = require("sequelize"),
-    QueryTypes = _require.QueryTypes;
+var _require = require("./database"),
+    createUser = _require.createUser;
 
 var _require2 = require("./database"),
-    db = _require2.db;
+    alreadyExist = _require2.alreadyExist;
 
 app.use(bodyParser.json());
 app.use(helmet());
@@ -22,26 +22,24 @@ var limiter = rateLimit({
   max: 5
 }); // user
 // login
-
-app.post('/users/login', validateUser, limiter, function (req, res) {
-  var user = {
-    user: req.body.user,
-    email: req.body.email,
-    password: req.body.password
-  };
-});
-
-var validateUser = function validateUser(req, res, next) {
-  if (users.some(function (user) {
-    return user.user === req.body.user || user.email === req.body.email;
-  } && user.password === req.body.password)) next(); // if () 
-  //     res.status(400).end();
-  // else res.status(404).end();
-}; // crear usuario
+// app.post('/users/login', validateUser, limiter, (req, res) =>{
+//     const user ={
+//         user: req.body.user,
+//         email: req.body.email,
+//         password: req.body.password
+//     }
+// })
+// const validateUser= (req, res, next) => {
+//     if (users.some((user => user.user === req.body.user || user.email === req.body.email) && user.password === req.body.password)) 
+//         next()
+//     // if () 
+//     //     res.status(400).end();
+//     // else res.status(404).end();
+// }
+// crear usuario
 // chequear si esta bien que aca vaya un next
 
-
-app.post('/users/signup', function (req, res, next) {
+app.post('/users/signup', function (req, res) {
   var user = {
     user: req.body.user,
     fullName: req.body.fullName,
@@ -49,9 +47,10 @@ app.post('/users/signup', function (req, res, next) {
     telephone: req.body.telephone,
     address: req.body.address,
     password: req.body.password
-  }; // por que no me reconoce el db de arriba?
-
-  db.createUser(user);
+  };
+  alreadyExist(user, req, res);
+  createUser(user);
+  console.log(user);
 }); // hacer pedido
 // ver si order es uno solo o varias propiedades
 
@@ -67,4 +66,8 @@ app.post('users/{id}/order', function (req, res) {
 app.get('users/{id}/order');
 app.listen(3000, function () {
   return console.log("server started");
+});
+app.use(function (err, req, res, next) {
+  console.log("error");
+  res.status(400).end();
 });

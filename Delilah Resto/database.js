@@ -1,4 +1,5 @@
-const {Sequelize} = require("sequelize")
+const {Sequelize, where} = require("sequelize")
+const { QueryTypes } = require("sequelize")
 
 const db = new Sequelize ("delilahresto", "root", "",{
     host: "localhost",
@@ -7,16 +8,19 @@ const db = new Sequelize ("delilahresto", "root", "",{
 }
 )
 
-//CREAR TABLA
-// CREATE TABLE users(
-//     id INT(10) NOT NULL PRIMARY KEY AUTO_INCREMENT,
-//     fullName VARCHAR(64) NOT NULL,
-//     email VARCHAR(64) NOT NULL UNIQUE,
-//     telephone INT(15) NOT NULL,
-//     address VARCHAR(64) NOT NULL,
-//     password VARCHAR(64) NOT NULL
-// )
 
+async function alreadyExist(user, res, req, next){
+    const alreadyExist = await db.query(`SELECT * FROM users WHERE (user = :user) OR (email = :email)`,{
+        type: QueryTypes.SELECT,
+        replacements: user
+    })
+    console.log(alreadyExist)
+    if(Object.entries(alreadyExist) !=0){
+        res.status(400).end()
+    }else{
+        next()
+    }
+}
 
 async function createUser(user){
     const inserted = await db.query(`
@@ -26,9 +30,10 @@ async function createUser(user){
         replacements: user,
         type: QueryTypes.INSERT
     })
+
 }
 
 module.exports = {
-    "db": db,
-    "createUser": createUser
+    createUser,
+    alreadyExist
 }

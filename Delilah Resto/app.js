@@ -4,8 +4,9 @@ const rateLimit = require('express-rate-limit');
 const bodyParser = require("body-parser");
 
 // ver si esto va aca o en otro archivo, quizas va aparte y se exportan las funciones
-const { QueryTypes } = require("sequelize")
-const {db} = require("./database")
+
+const {createUser} = require(`./database`)
+const {alreadyExist} = require(`./database`)
 
 app.use(bodyParser.json())
 app.use(helmet())
@@ -17,28 +18,29 @@ const limiter = rateLimit({
 
 // user
 // login
-app.post('/users/login', validateUser, limiter, (req, res) =>{
-    const user ={
-        user: req.body.user,
-        email: req.body.email,
-        password: req.body.password
-    }
+// app.post('/users/login', validateUser, limiter, (req, res) =>{
+//     const user ={
+//         user: req.body.user,
+//         email: req.body.email,
+//         password: req.body.password
+//     }
 
-})
+// })
 
-const validateUser= (req, res, next) => {
-    if (users.some((user => user.user === req.body.user || user.email === req.body.email) && user.password === req.body.password)) 
-        next()
-    // if () 
-    //     res.status(400).end();
-    // else res.status(404).end();
+// const validateUser= (req, res, next) => {
+//     if (users.some((user => user.user === req.body.user || user.email === req.body.email) && user.password === req.body.password)) 
+//         next()
+//     // if () 
+//     //     res.status(400).end();
+//     // else res.status(404).end();
     
-}
+// }
 
 // crear usuario
 // chequear si esta bien que aca vaya un next
 
-app.post('/users/signup', (req, res, next) =>{
+
+app.post('/users/signup', (req, res) =>{
     const user ={
         user: req.body.user,
         fullName: req.body.fullName,
@@ -47,10 +49,11 @@ app.post('/users/signup', (req, res, next) =>{
         address: req.body.address,
         password: req.body.password
     }
-    // por que no me reconoce el db de arriba?
-    db.createUser(user)
+    alreadyExist(user, req, res)
+    createUser(user)
+    console.log(user)
 })
-
+ 
 // hacer pedido
 // ver si order es uno solo o varias propiedades
 let orderId = 1
@@ -65,8 +68,14 @@ app.post('users/{id}/order', (req, res) =>{
 
 // seguir pedido
 app.get('users/{id}/order')
+
+
 app.listen(3000, () => console.log("server started"))
 
+app.use((err, req, res, next) => {
+    console.log(`error`);
+    res.status(400).end();
+})
 
 
 

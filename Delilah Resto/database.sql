@@ -1,0 +1,8 @@
+CREATE TABLE users(
+    id INT(10) NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    fullName VARCHAR(64) NOT NULL,
+    email VARCHAR(64) NOT NULL UNIQUE,
+    telephone INT(15) NOT NULL,
+    address VARCHAR(64) NOT NULL,
+    password VARCHAR(64) NOT NULL
+)
