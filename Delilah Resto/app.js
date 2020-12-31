@@ -7,6 +7,15 @@ const bodyParser = require("body-parser");
 
 const {createUser} = require(`./database`)
 const {alreadyExist} = require(`./database`)
+const {getProductsList} = require(`./database`)
+const {validateUser} = require(`./database`)
+const {getOrdersList} = require(`./database`)
+const {addNewProduct} = require(`./database`)
+const {deleteProduct} = require(`./database`)
+const {seeOrder} = require(`./database`)
+const {cancelOrder} = require(`./database`)
+
+
 
 app.use(bodyParser.json())
 app.use(helmet())
@@ -18,29 +27,16 @@ const limiter = rateLimit({
 
 // user
 // login
-// app.post('/users/login', validateUser, limiter, (req, res) =>{
-//     const user ={
-//         user: req.body.user,
-//         email: req.body.email,
-//         password: req.body.password
-//     }
+app.post('/users/login', validateUser, limiter, (req, res) =>{
+    const user ={
+        user: req.body.user,
+        password: req.body.password
+    }
 
-// })
-
-// const validateUser= (req, res, next) => {
-//     if (users.some((user => user.user === req.body.user || user.email === req.body.email) && user.password === req.body.password)) 
-//         next()
-//     // if () 
-//     //     res.status(400).end();
-//     // else res.status(404).end();
-    
-// }
+})
 
 // crear usuario
-// chequear si esta bien que aca vaya un next
-
-
-app.post('/users/signup', (req, res) =>{
+app.post('/users/signup', alreadyExist, limiter, (req, res) =>{
     const user ={
         user: req.body.user,
         fullName: req.body.fullName,
@@ -49,15 +45,22 @@ app.post('/users/signup', (req, res) =>{
         address: req.body.address,
         password: req.body.password
     }
-    alreadyExist(user, req, res)
     createUser(user)
     console.log(user)
 })
+
+// ver productos para ahcer pedido
+
+app.get('/products' , (req, res) =>{
+    getProductsList()
+    res.status(200)
+}
+)
  
 // hacer pedido
 // ver si order es uno solo o varias propiedades
 let orderId = 1
-app.post('users/{id}/order', (req, res) =>{
+app.post('/users/{id}/order', (req, res) =>{
     const order = {
         userId: req.params.id,
         order: req.body.order,
@@ -67,9 +70,44 @@ app.post('users/{id}/order', (req, res) =>{
 })
 
 // seguir pedido
-app.get('users/{id}/order')
+app.get('/users/{id}/order')
+
+//admin
+//lista de pedidos
+app.get('/admin/orders', (req, res) => {
+    getOrdersList()
+})
 
 
+// cargar producto
+app.post('/admin/products', (req, res)=>{
+    const product = {
+        name: req.body.name,
+        price: req.body.price
+    }
+    addNewProduct(product)
+    
+})
+
+// eliminar producto
+app.delete('/admin/products', (req, res) =>{
+    const product = {
+        name: req.body.name,
+        price: req.body.price
+    }
+    deleteProduct(product)
+})
+
+// ver un pedido
+app.get('admin/orders/:id', (req, res)=>{
+    seeOrder()
+
+})
+// cancelar un pedido
+app.delete('admin/orders/:id', (req, res)=>{
+    cancelOrder()
+
+})
 app.listen(3000, () => console.log("server started"))
 
 app.use((err, req, res, next) => {

@@ -15,6 +15,9 @@ var _require = require("./database"),
 var _require2 = require("./database"),
     alreadyExist = _require2.alreadyExist;
 
+var _require3 = require("./database"),
+    getProductsList = _require3.getProductsList;
+
 app.use(bodyParser.json());
 app.use(helmet());
 var limiter = rateLimit({
@@ -37,9 +40,8 @@ var limiter = rateLimit({
 //     // else res.status(404).end();
 // }
 // crear usuario
-// chequear si esta bien que aca vaya un next
 
-app.post('/users/signup', function (req, res) {
+app.post('/users/signup', alreadyExist, function (req, res) {
   var user = {
     user: req.body.user,
     fullName: req.body.fullName,
@@ -48,14 +50,18 @@ app.post('/users/signup', function (req, res) {
     address: req.body.address,
     password: req.body.password
   };
-  alreadyExist(user, req, res);
   createUser(user);
   console.log(user);
+}); // ver productos para ahcer pedido
+
+app.get('/products', function (req, res) {
+  getProductsList();
+  res.status(200);
 }); // hacer pedido
 // ver si order es uno solo o varias propiedades
 
 var orderId = 1;
-app.post('users/{id}/order', function (req, res) {
+app.post('/users/{id}/order', function (req, res) {
   var order = {
     userId: req.params.id,
     order: req.body.order,
@@ -63,7 +69,7 @@ app.post('users/{id}/order', function (req, res) {
   }; // mandarlo a pedidos
 }); // seguir pedido
 
-app.get('users/{id}/order');
+app.get('/users/{id}/order');
 app.listen(3000, function () {
   return console.log("server started");
 });

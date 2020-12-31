@@ -13,7 +13,7 @@ var db = new Sequelize("delilahresto", "root", "", {
   dialect: "mysql"
 });
 
-function alreadyExist(user, res, req, next) {
+function alreadyExist(req, res, next) {
   var alreadyExist;
   return regeneratorRuntime.async(function alreadyExist$(_context) {
     while (1) {
@@ -22,7 +22,7 @@ function alreadyExist(user, res, req, next) {
           _context.next = 2;
           return regeneratorRuntime.awrap(db.query("SELECT * FROM users WHERE (user = :user) OR (email = :email)", {
             type: QueryTypes.SELECT,
-            replacements: user
+            replacements: req.body
           }));
 
         case 2:
@@ -57,8 +57,9 @@ function createUser(user) {
 
         case 2:
           inserted = _context2.sent;
+          console.table(inserted);
 
-        case 3:
+        case 4:
         case "end":
           return _context2.stop();
       }
@@ -66,7 +67,31 @@ function createUser(user) {
   });
 }
 
+function getProductsList() {
+  var products;
+  return regeneratorRuntime.async(function getProductsList$(_context3) {
+    while (1) {
+      switch (_context3.prev = _context3.next) {
+        case 0:
+          _context3.next = 2;
+          return regeneratorRuntime.awrap(db.query("\n    SELECT name, price from products", {
+            type: QueryTypes.SELECT
+          }));
+
+        case 2:
+          products = _context3.sent;
+          console.table(products);
+
+        case 4:
+        case "end":
+          return _context3.stop();
+      }
+    }
+  });
+}
+
 module.exports = {
   createUser: createUser,
-  alreadyExist: alreadyExist
+  alreadyExist: alreadyExist,
+  getProductsList: getProductsList
 };
