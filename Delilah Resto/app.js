@@ -106,8 +106,8 @@ app.get('admin/orders/:id', (req, res)=>{
 // cancelar un pedido
 app.delete('admin/orders/:id', (req, res)=>{
     cancelOrder()
-
 })
+
 app.listen(3000, () => console.log("server started"))
 
 app.use((err, req, res, next) => {
