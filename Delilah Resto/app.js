@@ -14,6 +14,7 @@ const {addNewProduct} = require(`./database`)
 const {deleteProduct} = require(`./database`)
 const {seeOrder} = require(`./database`)
 const {cancelOrder} = require(`./database`)
+const {getOrderState} = require(`./database`)
 
 
 
@@ -70,7 +71,9 @@ app.post('/users/{id}/order', (req, res) =>{
 })
 
 // seguir pedido
-app.get('/users/{id}/order')
+app.get('/users/{id}/order', (req, res)=>{
+
+})
 
 //admin
 //lista de pedidos
@@ -99,12 +102,12 @@ app.delete('/admin/products', (req, res) =>{
 })
 
 // ver un pedido
-app.get('admin/orders/:id', (req, res)=>{
+app.get('admin/orders/{id}', (req, res)=>{
     seeOrder()
 
 })
 // cancelar un pedido
-app.delete('admin/orders/:id', (req, res)=>{
+app.delete('admin/orders/{id}', (req, res)=>{
     cancelOrder()
 })
 

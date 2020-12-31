@@ -98,22 +98,36 @@ async function deleteProduct(product){
 
 }
 
-async function seeOrder(){
+async function seeOrder(param){
     const seenOrder = await db.query(
-        `SELECT * FROM users WHERE (order_id = :id) `,
+        `SELECT * FROM orders WHERE (order_id = :id) `,
         {
         type: QueryTypes.SELECT,
-        replacements: req.params
+        replacements: param
         })
     console.log(seenOrder)
 }
-async function cancelOrder(order){
+async function cancelOrder(){
     const cancelOrder = await db.query(`
     DELETE FROM orders WHERE order_id= :id
     `, {
         replacements: req.params,
         type: QueryTypes.DELETE
     })
+}
+
+async function getOrderState(){
+    const actualOrder = await db.query(
+        `SELECT 
+        order.state, 
+        order.description, 
+        order.payment, 
+        order.total_payment 
+        FROM orders WHERE (user_id = :id) `,
+        {
+        type: QueryTypes.SELECT,
+        replacements: req.params
+        })
 }
 
 module.exports = {
@@ -125,5 +139,6 @@ module.exports = {
     addNewProduct,
     deleteProduct,
     cancelOrder,
-    seeOrder
+    seeOrder, 
+    getOrderState
 }
