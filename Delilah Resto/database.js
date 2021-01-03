@@ -43,11 +43,11 @@ async function  validateUser(req, res){
         type: QueryTypes.SELECT,
         replacements: req.body
         })
-
-    if(Object.entries(validate) == 1){
-        res.status(200).next()
+    console.table(validate)
+    if(validate.length === 1){
+        return true
     }else{
-        res.status(401).send('incorrect user or password').end()
+        return false
     }
 }
 async function getProductsList(){
@@ -58,7 +58,7 @@ async function getProductsList(){
     console.table(products)
 }
 
-async function getOrdersList(){
+async function getOrdersList(orden){
     const orders = await db.query( `
     SELECT orders.state, 
     orders.hour,
@@ -70,7 +70,8 @@ async function getOrdersList(){
     payment_method.payment_method
     FROM orders
     INNER JOIN payment_method ON orders.payment = payment_method.id
-    INNER JOIN users ON users.id = orders.user_id`, {
+    INNER JOIN users ON users.id = orders.user_id
+    ORDER BY orders.state ${orden}`, {
         type: QueryTypes.SELECT
     })
     console.table(orders)
@@ -98,36 +99,69 @@ async function deleteProduct(product){
 
 }
 
-async function seeOrder(param){
+async function seeOrder(order){
     const seenOrder = await db.query(
         `SELECT * FROM orders WHERE (order_id = :id) `,
         {
         type: QueryTypes.SELECT,
-        replacements: param
+        replacements: order
         })
     console.log(seenOrder)
+    return seenOrder
 }
-async function cancelOrder(){
+async function cancelOrder(order){
     const cancelOrder = await db.query(`
     DELETE FROM orders WHERE order_id= :id
     `, {
-        replacements: req.params,
+        replacements: order,
         type: QueryTypes.DELETE
     })
 }
 
-async function getOrderState(){
+async function getOrderState(order){
     const actualOrder = await db.query(
-        `SELECT 
-        order.state, 
-        order.description, 
-        order.payment, 
-        order.total_payment 
-        FROM orders WHERE (user_id = :id) `,
+        `SELECT  
+        order_state.state,
+        orders.description, 
+        orders.total_payment,
+        orders.payment, 
+        payment_method.payment_method,
+        users.address
+        FROM orders 
+        INNER JOIN order_state ON orders.state = order_state.id_state
+        INNER JOIN payment_method ON orders.payment = payment_method.id
+        INNER JOIN users ON users.id = orders.user_id
+        WHERE (user_id = :userId) `,
         {
         type: QueryTypes.SELECT,
-        replacements: req.params
+        replacements: order
         })
+    console.log(actualOrder)
+    return actualOrder
+}
+
+async function changeOrderState(orderState){
+    const state = await db.query(
+        `UPDATE orders
+        SET state = :stateId
+        WHERE order_id = :orderId`,
+        {
+            type: QueryTypes.UPDATE,
+            replacements: orderState
+        }
+    )
+    console.table(state)
+    
+}
+
+async function makeAnOrder(order){
+    const product = await db.query(`
+    INSERT INTO orders (state, description, payment, user_id, total_payment)
+    VALUES (1, :order, :payment, :userId, payment)
+    `, {
+        replacements: order,
+        type: QueryTypes.INSERT
+    })
 }
 
 module.exports = {
@@ -140,5 +174,7 @@ module.exports = {
     deleteProduct,
     cancelOrder,
     seeOrder, 
-    getOrderState
+    getOrderState,
+    changeOrderState,
+    makeAnOrder
 }
