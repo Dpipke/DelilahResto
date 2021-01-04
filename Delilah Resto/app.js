@@ -4,13 +4,12 @@ const rateLimit = require('express-rate-limit');
 const bodyParser = require("body-parser");
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
-dotenv.config();
-
+const bcrypt = require('bcrypt');
 
 const {createUser} = require(`./database`)
 const {alreadyExist} = require(`./database`)
 const {getProductsList} = require(`./database`)
-const {validateUser} = require(`./database`)
+const {getUser} = require(`./database`)
 const {getOrdersList} = require(`./database`)
 const {addNewProduct} = require(`./database`)
 const {deleteProduct} = require(`./database`)
@@ -24,6 +23,7 @@ app.use(bodyParser.json())
 app.use(helmet())
 
 const authorizationPassword = process.env.AuthPassword;
+dotenv.config();
 
 function verifyToken(req, res, next) {
     console.log(req.headers.authorization);
@@ -42,26 +42,40 @@ const limiter = rateLimit({
     max: 5
 })
 
+
 // user
 // login
-app.post('/users/login', validateUser, limiter, (req, res, next) =>{
+app.post('/login', limiter, (req, res) =>{
     const user ={
         user: req.body.user,
         password: req.body.password
     }
-    if(validateUser(user) === true ){
-        const userToken = jwt.sign(user, authorizationPassword,
-        console.log(userToken),
-        res.status(201).json(userToken))
-    }else{
-        res.status(401).send('incorrect user or password').end()
-    }
-})
+    const {password} = getUser(user)
+    console.log(password)
+    bcrypt.compare(user.password, password, function(err, result) {
+        if (result) {
+            console.log("It matches!")
+        }
+        else {
+            console.log("Invalid password!");
+        }
+    });
+});
 
-app.use(verifyToken);
+
+    // if(validateUser(user) === true ){
+    //     const userToken = jwt.sign({user, isAdmin}, authorizationPassword)
+    //     console.log(userToken)
+    //     res.status(201).json(userToken)
+    // }else{
+    //     res.status(401).send('incorrect user or password').end()
+    // }
+// })
+
+// app.use(verifyToken);
 
 // crear usuario
-app.post('/users/signup', alreadyExist, limiter, (req, res) =>{
+app.post('/signup', alreadyExist, limiter, (req, res) =>{
     const user ={
         user: req.body.user,
         fullName: req.body.fullName,
@@ -70,8 +84,12 @@ app.post('/users/signup', alreadyExist, limiter, (req, res) =>{
         address: req.body.address,
         password: req.body.password
     }
-    createUser(user)
-    console.log(user)
+    const saltRounds = 10;
+    bcrypt.genSalt(saltRounds, function(err, salt) {
+    bcrypt.hash(user.password, salt, function(err, hash) {
+    Object.defineProperty(user, 'hash', {value: hash})
+        createUser(user)
+});});
 })
 
 // ver productos para ahcer pedido

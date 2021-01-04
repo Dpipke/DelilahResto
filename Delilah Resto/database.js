@@ -22,12 +22,12 @@ async function alreadyExist(req, res, next){
     }
 }
 
-async function createUser(user){
+async function createUser(user, hash){
     const inserted = await db.query(`
     INSERT INTO users (user, fullName, email, telephone, address, password)
-    VALUES (:user, :fullName, :email, :telephone, :address, :password)
+    VALUES (:user, :fullName, :email, :telephone, :address, :hash)
     `, {
-        replacements: user,
+        replacements: user, hash,
         type: QueryTypes.INSERT
     })
     const users = await db.query( `
@@ -36,20 +36,19 @@ async function createUser(user){
     })
     console.table(users)
 }
-async function  validateUser(req, res){
-    const validate = await db.query(
-        `SELECT * FROM users WHERE (user = :user) OR (email = :user) AND (password = :password) `,
+async function getUser(userToLook){
+    const user = await db.query(
+        `SELECT password FROM users 
+        WHERE (user = :user) OR (email = :user)`,
         {
         type: QueryTypes.SELECT,
-        replacements: req.body
+        replacements: userToLook
         })
-    console.table(validate)
-    if(validate.length === 1){
-        return true
-    }else{
-        return false
-    }
+    console.table(user)
+    return user
 }
+
+
 async function getProductsList(){
     const products = await db.query( `
     SELECT name, price from products`, {
@@ -168,7 +167,7 @@ module.exports = {
     createUser,
     alreadyExist,
     getProductsList,
-    validateUser,
+    getUser,
     getOrdersList,
     addNewProduct,
     deleteProduct,
