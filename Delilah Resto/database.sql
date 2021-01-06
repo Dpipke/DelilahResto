@@ -13,3 +13,4 @@ CREATE TABLE orders( state VARCHAR(64) NOT NULL, hour TIME, order_id INT(10) PRI
 CREATE TABLE payment_method( id INT(10) NOT NULL PRIMARY KEY AUTO_INCREMENT, payment_method VARCHAR(64) )
 INSERT INTO `payment_method`(`payment_method`) VALUES ('efectivo'),('credito'),('debito')
 CREATE TABLE order_state( id_state INT(10) NOT NULL, state VARCHAR(64) NOT NULL)
+CREATE TABLE orders_and_products( order_id INT(10) NOT NULL, id_product INT(10) NOT NULL, quantity INT(10) NOT NULL )

@@ -24,8 +24,8 @@ async function alreadyExist(req, res, next){
 
 async function createUser(user, hash){
     const inserted = await db.query(`
-    INSERT INTO users (user, fullName, email, telephone, address, password)
-    VALUES (:user, :fullName, :email, :telephone, :address, :hash)
+    INSERT INTO users (user, fullName, email, telephone, address, password, admin)
+    VALUES (:user, :fullName, :email, :telephone, :address, :hash, 0)
     `, {
         replacements: user, hash,
         type: QueryTypes.INSERT
@@ -44,7 +44,7 @@ async function getUser(userToLook){
         type: QueryTypes.SELECT,
         replacements: userToLook
         })
-    console.table(user)
+
     return user
 }
 
@@ -89,7 +89,7 @@ async function addNewProduct(newProduct){
 }
 async function deleteProduct(product){
     const deletedproduct = await db.query(`
-    DELETE FROM products WHERE name= :name
+    DELETE FROM products WHERE id_product = :id
     `, {
         replacements: product,
         type: QueryTypes.DELETE
@@ -155,14 +155,69 @@ async function changeOrderState(orderState){
 
 async function makeAnOrder(order){
     const product = await db.query(`
-    INSERT INTO orders (state, description, payment, user_id, total_payment)
-    VALUES (1, :order, :payment, :userId, payment)
+    INSERT INTO orders (state, payment, user_id, total_payment)
+    VALUES (1, :payment, :userId, :payment)
     `, {
         replacements: order,
         type: QueryTypes.INSERT
     })
+
+    const getOrderId = await db.query(`
+    SELECT LAST_INSERT_ID() FROM orders
+    `, {
+        replacements: order,
+        type: QueryTypes.SELECT
+    })   
+    const getOrderIdValue = getOrderId[0] 
+    console.log(getOrderIdValue)
+    // const orderId = Object.values(getOrderIdValue)
+    // console.log(orderId)
+
+    console.log(order)
+    const eachProduct = await db.query(`
+    INSERT INTO orders_and_products (order_id)
+    VALUES (:LAST_INSERT_ID())
+    `, {
+        replacements: {'order_id': getOrderIdValue},
+        type: QueryTypes.INSERT
+    })
 }
 
+async function updateProduct(product){
+
+    const set = Object.keys(product).filter(key => product[key] != null && key != "id").map(key => `${key} = :${key}`).join(",")
+    const query = `UPDATE products SET ${set} WHERE id_product = :id` 
+    const updatedProduct = await db.query(query,
+        {
+            type: QueryTypes.UPDATE,
+            replacements: product
+        }
+    )
+}
+
+async function seeProduct(product){
+    const shownProduct = await db.query(
+        `SELECT name, price, product_description FROM products 
+        WHERE (id_product = :id)`,
+        {
+        type: QueryTypes.SELECT,
+        replacements: product
+        })
+    console.log(shownProduct)
+    return shownProduct
+}
+
+async function isAdmin(user){
+    const adminPrivilege = await db.query(
+        `SELECT admin FROM users 
+        WHERE (user = :user) OR (email = :user)`,
+        {
+        type: QueryTypes.SELECT,
+        replacements: user
+        })
+    console.log(adminPrivilege)
+    return adminPrivilege
+}
 module.exports = {
     createUser,
     alreadyExist,
@@ -175,5 +230,8 @@ module.exports = {
     seeOrder, 
     getOrderState,
     changeOrderState,
-    makeAnOrder
+    makeAnOrder, 
+    seeProduct,
+    updateProduct,
+    isAdmin
 }
