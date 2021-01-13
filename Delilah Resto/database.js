@@ -1,4 +1,4 @@
-const {Sequelize, where} = require("sequelize")
+const {Sequelize} = require("sequelize")
 const { QueryTypes } = require("sequelize")
 
 const db = new Sequelize ("delilahresto", "root", "",{
@@ -38,7 +38,7 @@ async function createUser(user, hash){
 }
 async function getUser(userToLook){
     const user = await db.query(
-        `SELECT password FROM users 
+        `SELECT * FROM users 
         WHERE (user = :user) OR (email = :user)`,
         {
         type: QueryTypes.SELECT,
@@ -46,6 +46,7 @@ async function getUser(userToLook){
         })
 
     return user
+
 }
 
 
@@ -58,22 +59,34 @@ async function getProductsList(){
 }
 
 async function getOrdersList(orden){
+    const joinProductQuantity = await db.query(`
+    SELECT CONCAT(name, ' x ', quantity) AS description, order_id 
+    FROM orders_and_products
+    INNER JOIN products 
+    ON products.id_product = orders_and_products.id_product
+    `, {
+        type: QueryTypes.SELECT
+    })
+
     const orders = await db.query( `
     SELECT orders.state, 
     orders.hour,
     orders.order_id,
-    orders.description, 
     users.address,
     users.fullName,
- 
+
     payment_method.payment_method
     FROM orders
     INNER JOIN payment_method ON orders.payment = payment_method.id
     INNER JOIN users ON users.id = orders.user_id
+
     ORDER BY orders.state ${orden}`, {
         type: QueryTypes.SELECT
     })
-    console.table(orders)
+    console.log(joinProductQuantity)
+
+    const mappedOrdersArray = orders.map( order => Object.assign({}, order, {description: joinProductQuantity.filter( product => product.order_id === order.order_id).map( product => product.description).join(", ")}))
+    console.table(mappedOrdersArray)
 }
 
 async function addNewProduct(newProduct){
@@ -117,27 +130,27 @@ async function cancelOrder(order){
     })
 }
 
-async function getOrderState(order){
-    const actualOrder = await db.query(
-        `SELECT  
-        order_state.state,
-        orders.description, 
-        orders.total_payment,
-        orders.payment, 
-        payment_method.payment_method,
-        users.address
-        FROM orders 
-        INNER JOIN order_state ON orders.state = order_state.id_state
-        INNER JOIN payment_method ON orders.payment = payment_method.id
-        INNER JOIN users ON users.id = orders.user_id
-        WHERE (user_id = :userId) `,
-        {
-        type: QueryTypes.SELECT,
-        replacements: order
-        })
-    console.log(actualOrder)
-    return actualOrder
-}
+// async function getOrderState(order){
+//     const actualOrder = await db.query(
+//         `SELECT  
+//         order_state.state,
+//         orders.description, 
+//         orders.total_payment,
+//         orders.payment, 
+//         payment_method.payment_method,
+//         users.address
+//         FROM orders 
+//         INNER JOIN order_state ON orders.state = order_state.id_state
+//         INNER JOIN payment_method ON orders.payment = payment_method.id
+//         INNER JOIN users ON users.id = orders.user_id
+//         WHERE (user_id = :userId) `,
+//         {
+//         type: QueryTypes.SELECT,
+//         replacements: order
+//         })
+//     console.log(actualOrder)
+//     return actualOrder
+// }
 
 async function changeOrderState(orderState){
     const state = await db.query(
@@ -153,38 +166,37 @@ async function changeOrderState(orderState){
     
 }
 
-async function makeAnOrder(order){
-    const product = await db.query(`
-    INSERT INTO orders (state, payment, user_id, total_payment)
-    VALUES (1, :payment, :userId, :payment)
+async function makeAnOrder(userId, order){
+    async function transformOrderData(order){
+    const orderArray = Object.values(order)
+    const productsArray = orderArray[2]
+    console.log(productsArray)
+    return productsArray
+    }
+
+    const orderData = await transformOrderData(order)
+    console.log(orderData)
+
+    
+    const orderInformation = await db.query(`
+    INSERT INTO orders (state, payment, user_id, total_payment, delivery_address)
+    VALUES (1, :payment, :userId, :totalPrice, :deliveryAddress)
     `, {
-        replacements: order,
+        replacements: {'userId':userId, 'payment':order.payment, 'totalPrice':order.totalPrice, 'deliveryAddress': order.deliveryAddress},
         type: QueryTypes.INSERT
     })
+    console.log(orderInformation) 
+    
+    const orderId = orderInformation[0]
+    console.log(orderId)
+    const postOrder = await Promise.all(orderData.map(product => db.query(`
+        INSERT INTO orders_and_products (order_id, id_product, quantity)
+        VALUES (:order_id, :id_product, :quantity)
+        `, { replacements: {'order_id': orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
 
-    const getOrderId = await db.query(`
-    SELECT LAST_INSERT_ID() FROM orders
-    `, {
-        replacements: order,
-        type: QueryTypes.SELECT
-    })   
-    const getOrderIdValue = getOrderId[0] 
-    console.log(getOrderIdValue)
-    // const orderId = Object.values(getOrderIdValue)
-    // console.log(orderId)
-
-    console.log(order)
-    const eachProduct = await db.query(`
-    INSERT INTO orders_and_products (order_id)
-    VALUES (:LAST_INSERT_ID())
-    `, {
-        replacements: {'order_id': getOrderIdValue},
-        type: QueryTypes.INSERT
-    })
 }
 
 async function updateProduct(product){
-
     const set = Object.keys(product).filter(key => product[key] != null && key != "id").map(key => `${key} = :${key}`).join(",")
     const query = `UPDATE products SET ${set} WHERE id_product = :id` 
     const updatedProduct = await db.query(query,
@@ -207,17 +219,21 @@ async function seeProduct(product){
     return shownProduct
 }
 
-async function isAdmin(user){
-    const adminPrivilege = await db.query(
-        `SELECT admin FROM users 
-        WHERE (user = :user) OR (email = :user)`,
+async function validateUserAccess(id, orderId){
+    const isValidate = await db.query(
+        `SELECT 
+        user_id,
+        order_id
+        FROM orders 
+        WHERE (user_id = :id) AND (order_id = :order_id)`,
         {
         type: QueryTypes.SELECT,
-        replacements: user
+        replacements: {'id': id, 'order_id': orderId}
         })
-    console.log(adminPrivilege)
-    return adminPrivilege
+    console.log(isValidate)
+    return isValidate
 }
+
 module.exports = {
     createUser,
     alreadyExist,
@@ -228,10 +244,9 @@ module.exports = {
     deleteProduct,
     cancelOrder,
     seeOrder, 
-    getOrderState,
+    validateUserAccess,
     changeOrderState,
     makeAnOrder, 
     seeProduct,
     updateProduct,
-    isAdmin
 }

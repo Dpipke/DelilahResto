@@ -15,13 +15,11 @@ const {addNewProduct} = require(`./database`)
 const {deleteProduct} = require(`./database`)
 const {seeOrder} = require(`./database`)
 const {cancelOrder} = require(`./database`)
-const {getOrderState} = require(`./database`)
+const {validateUserAccess} = require(`./database`)
 const {changeOrderState} = require(`./database`)
 const {makeAnOrder} = require(`./database`)
 const {seeProduct} = require(`./database`)
 const {updateProduct} = require(`./database`)
-const {isAdmin} = require(`./database`)
-
 
 app.use(bodyParser.json())
 app.use(helmet())
@@ -53,18 +51,15 @@ app.post('/login', limiter, async (req, res) =>{
         user: req.body.user,
     }
     const passwordRequest = req.body.password
-    const username = await getUser(loginRequest)
-    const objectUserName = username[0]
-    const arrayUserName = Object.values(objectUserName).toString()
-    console.log(arrayUserName)
+    const user = await getUser(loginRequest)
+    console.log(user)
+    const objectUser = user[0]
+    const objectPassword = objectUser.password
+    console.log(objectPassword)
     console.log(passwordRequest)
-    bcrypt.compare(passwordRequest, arrayUserName, async function(err, result) {
+    bcrypt.compare(passwordRequest, objectPassword, async function(err, result) {
         if (result) {
-            const adminPrivilege = await isAdmin(loginRequest)
-            const adminPrivilegeObject = adminPrivilege[0]
-            const adminPrivilegeArray = Object.values(adminPrivilegeObject).toString()
-            console.log(adminPrivilegeArray)
-            const userToken = jwt.sign({loginRequest, adminPrivilegeArray}, authorizationPassword)
+            const userToken = jwt.sign({user}, authorizationPassword)
             console.log(userToken)
             res.status(201).json(userToken)
         }
@@ -117,31 +112,20 @@ app.get('/products/:id', (req, res)=>{
         }
     })
 
-    
-
- 
 // hacer pedido
-// ver si order es uno solo o varias propiedades
-app.post('/users/:id/order', (req, res) =>{
+app.post('/orders', (req, res) =>{
+    const token = req.headers.authorization.split(' ')[1];
+    const user = jwt.verify(token, authorizationPassword);
+    const userId = user.user[0].id
     const order = {
-        userId: req.params.id,
         totalPrice: req.body.totalPrice,
         payment: req.body.payment,
-        productId : req.body.productId
+        productsList : req.body.productsList,
+        deliveryAddress: req.body.deliveryAddress
     }
 
-    makeAnOrder(order)
+    makeAnOrder(userId,order)
     res.status(201).send('Recibimos tu pedido')
-})
-
-// seguir pedido
-app.get('/users/:id/order', (req, res)=>{
-    const order ={
-        userId: req.params.id
-    }
-    getOrderState(order)
-    res.status(201).json()
-
 })
 
 
@@ -187,7 +171,7 @@ app.delete('/products',filterAdmin, (req, res) =>{
 })
 
 // ver un pedido
-app.get('/orders/:id', (req, res)=>{
+app.get('/orders/:id', validatePermission, (req, res)=>{
     const order ={
         id: req.params.id
     }
@@ -197,14 +181,26 @@ app.get('/orders/:id', (req, res)=>{
 })
 
 // cambiar estado de un pedido
-app.put('/orders/:id', filterAdmin, (req, res)=>{
-    const state ={
-        stateId : req.body.stateId,
-        orderId : req.params.id
+app.put('/orders/:id', validatePermission, (req, res)=>{
+    const token = req.headers.authorization.split(' ')[1];
+    const user = jwt.verify(token, authorizationPassword);
+    const adminPrivilege = user.user[0].admin
+    if(adminPrivilege === 1){
+        const state ={
+            stateId : req.body.stateId,
+            orderId : req.params.id
+        }
+        changeOrderState(state)
+        res.status(201).end()
+    }else{
+        const orderToModify ={
+            orderId : req.params.id,
+            payment : req.params.payment,
+            totalPrice : req.params.totalPrice,
+            productsList : req.params.productsList
+
+        }
     }
-    // como poner condicion por i order id no existe
-    changeOrderState(state)
-    res.status(201).end()
 })
 
 // cancelar un pedido
@@ -219,20 +215,38 @@ app.delete('/orders/:id', filterAdmin, (req, res)=>{
 
 app.listen(3000, () => console.log("server started"))
 
-app.use((err, req, res, next) => {
-    console.log(err);
-    res.status(400).end();
-})
 
 function filterAdmin(req, res, next) {
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
-    console.log(user);
-    if(user.adminPrivilegeArray = "1") {
+    const adminPrivilege = user.user[0].admin
+    console.log(adminPrivilege);
+    if(adminPrivilege === 1 ) {
         next();
     } else {
         res.status(403).end();
     }
 }
 
+async function validatePermission(req, res, next){
+    const token = req.headers.authorization.split(' ')[1];
+    const user = jwt.verify(token, authorizationPassword);
+    const userToCheck = user.user[0].id
+    const adminPrivilege = user.user[0].admin
+    console.log(userToCheck)
+    const orderId = req.params.id
+    const validateUser = await validateUserAccess(userToCheck, orderId)
+    console.log(validateUser.length)
+    if(adminPrivilege === 1){
+        next();
+    }if(validateUser.length === 0){
+        res.status(403).send('forbidden access')
+    }else{
+        next()
+    }
+}
 
+app.use((err, req, res, next) => {
+    console.log(err);
+    res.status(400).end();
+})
