@@ -14,7 +14,6 @@ async function alreadyExist(req, res, next){
         type: QueryTypes.SELECT,
         replacements: req.body
     })
-    console.log(alreadyExist)
     if(Object.entries(alreadyExist) !=0){
         res.status(400).send('user or email already exists')
     }else{
@@ -34,7 +33,6 @@ async function createUser(user, hash){
     SELECT * from users`, {
         type: QueryTypes.SELECT
     })
-    console.table(users)
 }
 async function getUser(userToLook){
     const user = await db.query(
@@ -81,7 +79,8 @@ async function getOrdersList(orden){
     INNER JOIN users ON users.id = orders.user_id
 
     ORDER BY orders.state ${orden}`, {
-        type: QueryTypes.SELECT
+        type: QueryTypes.SELECT,
+        replacements: order
     })
     console.log(joinProductQuantity)
 
@@ -97,8 +96,7 @@ async function addNewProduct(newProduct){
         replacements: newProduct,
         type: QueryTypes.INSERT
     })
-    // por que me carga mal la tabla?
-    console.table(product)
+    return product
 }
 async function deleteProduct(product){
     const deletedproduct = await db.query(`
@@ -112,14 +110,37 @@ async function deleteProduct(product){
 }
 
 async function seeOrder(order){
+    const joinProductQuantity = await db.query(`
+    SELECT CONCAT(name, ' x ', quantity) AS description, order_id 
+    FROM orders_and_products
+    INNER JOIN products 
+    ON products.id_product = orders_and_products.id_product
+    WHERE (order_id = :id)
+    `, {
+        type: QueryTypes.SELECT,
+        replacements: order
+    })
+    console.log(joinProductQuantity)
     const seenOrder = await db.query(
-        `SELECT * FROM orders WHERE (order_id = :id) `,
+        `SELECT 
+        orders.order_id,
+        order_state.state,
+        orders.total_payment,
+        payment_method.payment_method,
+        users.address
+        FROM orders 
+        INNER JOIN order_state ON orders.state = order_state.id_state
+        INNER JOIN payment_method ON orders.payment = payment_method.id
+        INNER JOIN users ON users.id = orders.user_id
+        WHERE (order_id = :id) `,
         {
         type: QueryTypes.SELECT,
         replacements: order
         })
     console.log(seenOrder)
-    return seenOrder
+    const mappedOrderArray = seenOrder.map( order => Object.assign({}, order, {description: joinProductQuantity.filter( product => product.order_id === order.order_id).map( product => product.description).join(", ")}))
+    console.log(mappedOrderArray)
+    return mappedOrderArray
 }
 async function cancelOrder(order){
     const cancelOrder = await db.query(`
@@ -130,27 +151,7 @@ async function cancelOrder(order){
     })
 }
 
-// async function getOrderState(order){
-//     const actualOrder = await db.query(
-//         `SELECT  
-//         order_state.state,
-//         orders.description, 
-//         orders.total_payment,
-//         orders.payment, 
-//         payment_method.payment_method,
-//         users.address
-//         FROM orders 
-//         INNER JOIN order_state ON orders.state = order_state.id_state
-//         INNER JOIN payment_method ON orders.payment = payment_method.id
-//         INNER JOIN users ON users.id = orders.user_id
-//         WHERE (user_id = :userId) `,
-//         {
-//         type: QueryTypes.SELECT,
-//         replacements: order
-//         })
-//     console.log(actualOrder)
-//     return actualOrder
-// }
+
 
 async function changeOrderState(orderState){
     const state = await db.query(
@@ -205,6 +206,7 @@ async function updateProduct(product){
             replacements: product
         }
     )
+    return updatedProduct
 }
 
 async function seeProduct(product){
@@ -234,6 +236,32 @@ async function validateUserAccess(id, orderId){
     return isValidate
 }
 
+async function updateOrderInformation(order){
+    const set = Object.keys(order).filter(key => order[key] != null && key != "orderId" && key != "productsList").map(key => `${key} = :${key}`).join(",")
+    const query = `UPDATE orders SET ${set} WHERE order_id = :orderId` 
+    const updatedOrder = await db.query(query,
+        {
+            type: QueryTypes.UPDATE,
+            replacements: order
+        }
+    )
+    const newProductsList = order.productsList
+     
+    const deleteOldProducts = await db.query(
+        `DELETE FROM orders_and_products
+        WHERE (order_id = :orderId)`,
+        {
+        type: QueryTypes.DELETE,
+        replacements: order
+        })
+
+    const addNewProducts = await Promise.all(newProductsList.map(product => db.query(`
+        INSERT INTO orders_and_products (order_id, id_product, quantity)
+        VALUES (:order_id, :id_product, :quantity)
+        `, { replacements: {'order_id': order.orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
+
+}
+
 module.exports = {
     createUser,
     alreadyExist,
@@ -249,4 +277,5 @@ module.exports = {
     makeAnOrder, 
     seeProduct,
     updateProduct,
+    updateOrderInformation
 }

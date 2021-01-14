@@ -20,6 +20,7 @@ const {changeOrderState} = require(`./database`)
 const {makeAnOrder} = require(`./database`)
 const {seeProduct} = require(`./database`)
 const {updateProduct} = require(`./database`)
+const {updateOrderInformation} = require(`./database`)
 
 app.use(bodyParser.json())
 app.use(helmet())
@@ -52,7 +53,9 @@ app.post('/login', limiter, async (req, res) =>{
     }
     const passwordRequest = req.body.password
     const user = await getUser(loginRequest)
-    console.log(user)
+    if(user.length === 0){
+        res.status(400).send("invalid user or password")
+    }else{
     const objectUser = user[0]
     const objectPassword = objectUser.password
     console.log(objectPassword)
@@ -61,19 +64,19 @@ app.post('/login', limiter, async (req, res) =>{
         if (result) {
             const userToken = jwt.sign({user}, authorizationPassword)
             console.log(userToken)
-            res.status(201).json(userToken)
+            res.status(200).json(userToken)
         }
         else {
-            res.status(400).send("Invalid password")
+            res.status(400).send("invalid user or password")
         }
     });
 
-});
+}});
 
 app.use(verifyToken);
 
 // crear usuario
-app.post('/signup', alreadyExist, limiter, (req, res) =>{
+app.post('/signup', limiter, alreadyExist, (req, res) =>{
     const user ={
         user: req.body.user,
         fullName: req.body.fullName,
@@ -87,7 +90,7 @@ app.post('/signup', alreadyExist, limiter, (req, res) =>{
     bcrypt.hash(user.password, salt, function(err, hash) {
     Object.defineProperty(user, 'hash', {value: hash})
         createUser(user)
-        res.status(200)
+        res.status(200).send("user created")
 });});
 })
 
@@ -101,7 +104,7 @@ app.get('/products' , (req, res) =>{
 
 app.get('/products/:id', (req, res)=>{
     const product = {
-        id: req.params.id
+        id: +req.params.id
     }
     seeProduct(product) 
         if (seeProduct(product) === "") {
@@ -118,7 +121,7 @@ app.post('/orders', (req, res) =>{
     const user = jwt.verify(token, authorizationPassword);
     const userId = user.user[0].id
     const order = {
-        totalPrice: req.body.totalPrice,
+        total_payment: req.body.total_payment,
         payment: req.body.payment,
         productsList : req.body.productsList,
         deliveryAddress: req.body.deliveryAddress
@@ -131,20 +134,21 @@ app.post('/orders', (req, res) =>{
 
 //admin
 //lista de pedidos
-app.get('/orders', filterAdmin, (req, res) => {
-    getOrdersList("ASC")
+app.get('/orders', filterAdmin, async (req, res) => {
+    const ordersList = await getOrdersList("ASC")
+    res.status(200).send(ordersList)
 })
 
 
 // cargar producto
-app.post('/products', filterAdmin, (req, res)=>{
+app.post('/products', filterAdmin, async (req, res)=>{
     const product = {
         name: req.body.name,
         price: req.body.price,
         product_description: req.body.product_description
     }
-    addNewProduct(product)
-    res.status(200).end()
+    const newProduct = await addNewProduct(product)
+    res.status(200).send(newProduct)
     
 })
 
@@ -156,8 +160,8 @@ app.put('/products/:id', filterAdmin, (req, res)=>{
         price: req.body.price
     }
     console.log(product)
-    updateProduct(product)
-    res.status(200).end()
+    const updatedProduct = updateProduct(product)
+    res.status(200).send(updatedProduct)
 
 })
 
@@ -168,19 +172,20 @@ app.delete('/products',filterAdmin, (req, res) =>{
         id: req.body.id,
     }
     deleteProduct(product)
+    res.status(200).send("Producto eliminado")
 })
 
 // ver un pedido
-app.get('/orders/:id', validatePermission, (req, res)=>{
-    const order ={
-        id: req.params.id
+app.get('/orders/:id', validatePermission, async (req, res)=>{
+    const orderParameters ={
+        id: +req.params.id
     }
-    seeOrder(order)
-    res.status(201).json()
+    const order = await seeOrder(orderParameters)
+    res.status(201).send(order)
     
 })
 
-// cambiar estado de un pedido
+// cambiar  pedido
 app.put('/orders/:id', validatePermission, (req, res)=>{
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
@@ -191,16 +196,19 @@ app.put('/orders/:id', validatePermission, (req, res)=>{
             orderId : req.params.id
         }
         changeOrderState(state)
-        res.status(201).end()
+        res.status(200).end()
     }else{
         const orderToModify ={
             orderId : req.params.id,
-            payment : req.params.payment,
-            totalPrice : req.params.totalPrice,
-            productsList : req.params.productsList
+            payment : req.body.payment,
+            total_payment : req.body.total_payment,
+            productsList : req.body.productsList
 
         }
+        updateOrderInformation(orderToModify)
+        res.status(200).end()
     }
+    
 })
 
 // cancelar un pedido
@@ -229,6 +237,7 @@ function filterAdmin(req, res, next) {
 }
 
 async function validatePermission(req, res, next){
+    console.log("hola")
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
     const userToCheck = user.user[0].id
@@ -246,7 +255,21 @@ async function validatePermission(req, res, next){
     }
 }
 
+// async function validateInformationProvided(req, res, next){
+//     console.log(req.body)
+//     console.log(typeof req.body.user)
+//     if(req.body.user !== "string" || req.body.user === null){
+//         res.status(400).send("Campo obligatorio. Debe ser una combinacion de letras y numeros")
+//     }if(req.body.fullName !== "string" || req.body.fullName === null){
+//         res.status(400).send("Campo obligatorio. Debe ser su nombre real")
+//     }if(req.body.email.includes("@") === false || req.body.email === null){
+//         res.status(400).send("Email invalido")
+//     }if(isNan(req.body.telephone) === false || req.body.telephone === null){
+//         res.status(400).send("Telefono invalido")
+//     }
+// }
+
 app.use((err, req, res, next) => {
-    console.log(err);
+    console.log("Error");
     res.status(400).end();
 })
