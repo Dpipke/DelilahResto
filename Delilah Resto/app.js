@@ -44,8 +44,6 @@ const limiter = rateLimit({
     max: 5
 })
 
-
-// user
 // login
 app.post('/login', limiter, async (req, res) =>{
     const loginRequest ={
@@ -75,8 +73,8 @@ app.post('/login', limiter, async (req, res) =>{
 
 app.use(verifyToken);
 
-// crear usuario
-app.post('/signup', limiter, alreadyExist, (req, res) =>{
+// create user
+app.post('/signup', limiter, userAlreadyExists, validateSignUpInformation, (req, res) =>{
     const user ={
         user: req.body.user,
         fullName: req.body.fullName,
@@ -88,94 +86,99 @@ app.post('/signup', limiter, alreadyExist, (req, res) =>{
     const saltRounds = 10;
     bcrypt.genSalt(saltRounds, function(err, salt) {
     bcrypt.hash(user.password, salt, function(err, hash) {
-    Object.defineProperty(user, 'hash', {value: hash})
-        createUser(user)
-        res.status(200).send("user created")
+        if (err) throw res.status(400).send("An error has happened")
+        else{
+        Object.defineProperty(user, 'hash', {value: hash})
+            createUser(user)
+            res.status(200).send("user created")}
 });});
 })
 
-// ver productos para ahcer pedido
 
-app.get('/products' , (req, res) =>{
-    getProductsList()
-    res.status(200)
+// get products list
+app.get('/products' , async (req, res) =>{
+    const productsList = await getProductsList()
+    res.status(200).send(productsList)
 }
 )
 
-app.get('/products/:id', (req, res)=>{
+// get a product information
+app.get('/products/:id', async (req, res)=>{
     const product = {
         id: +req.params.id
     }
-    seeProduct(product) 
-        if (seeProduct(product) === "") {
-            res.status(400).send("Product not found")
+    const getOneProduct = await seeProduct(product) 
+        if (getOneProduct.length === 0) {
+            res.status(404).send("Product not found")
         }
         else {
-            res.status(200)
+            res.status(200).send(getOneProduct)
         }
     })
 
-// hacer pedido
-app.post('/orders', (req, res) =>{
+// make an order
+app.post('/orders', validateOrderingInformation, async (req, res) =>{
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
     const userId = user.user[0].id
     const order = {
-        total_payment: req.body.total_payment,
-        payment: req.body.payment,
+        total_payment: +req.body.total_payment,
+        payment: +req.body.payment,
         productsList : req.body.productsList,
         deliveryAddress: req.body.deliveryAddress
     }
 
-    makeAnOrder(userId,order)
-    res.status(201).send('Recibimos tu pedido')
+    const orderPosted = await makeAnOrder(userId,order)
+    if(orderPosted == false){
+        res.status(400).send("An error has occurred")
+    }else{
+    res.status(201).send('We received your order')
+    }
 })
 
 
-//admin
-//lista de pedidos
+//get orders list
 app.get('/orders', filterAdmin, async (req, res) => {
-    const ordersList = await getOrdersList("ASC")
+    const ordersList = await getOrdersList()
     res.status(200).send(ordersList)
 })
 
 
-// cargar producto
-app.post('/products', filterAdmin, async (req, res)=>{
+// post new product
+app.post('/products', filterAdmin, validateNewProductInformation, async (req, res)=>{
     const product = {
         name: req.body.name,
-        price: req.body.price,
+        price: +req.body.price,
         product_description: req.body.product_description
     }
     const newProduct = await addNewProduct(product)
-    res.status(200).send(newProduct)
+    res.status(201).send(newProduct)
     
 })
 
-// actualizar un producot
-app.put('/products/:id', filterAdmin, (req, res)=>{
+// update product
+app.put('/products/:id', filterAdmin, validateUpdatedProductInformation, async (req, res)=>{
     const product = {
-        id: req.params.id,
+        id: +req.params.id,
         product_description: req.body.product_description,
-        price: req.body.price
+        price: +req.body.price
     }
-    console.log(product)
-    const updatedProduct = updateProduct(product)
+    const updatedProduct = await updateProduct(product)
     res.status(200).send(updatedProduct)
 
 })
 
 
-// eliminar producto
-app.delete('/products',filterAdmin, (req, res) =>{
+// delete product
+app.delete('/products/:id',filterAdmin, async (req, res) =>{
     const product = {
-        id: req.body.id,
+        id: +req.params.id
     }
-    deleteProduct(product)
-    res.status(200).send("Producto eliminado")
+    const deletedProduct = await deleteProduct(product)
+    res.status(200).send("Product succesfully deleted")
 })
 
-// ver un pedido
+// get order
 app.get('/orders/:id', validatePermission, async (req, res)=>{
     const orderParameters ={
         id: +req.params.id
@@ -232,43 +235,102 @@ function filterAdmin(req, res, next) {
     if(adminPrivilege === 1 ) {
         next();
     } else {
-        res.status(403).end();
+        res.status(403).send('forbidden access');
     }
 }
 
 async function validatePermission(req, res, next){
-    console.log("hola")
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
     const userToCheck = user.user[0].id
     const adminPrivilege = user.user[0].admin
-    console.log(userToCheck)
     const orderId = req.params.id
     const validateUser = await validateUserAccess(userToCheck, orderId)
-    console.log(validateUser.length)
-    if(adminPrivilege === 1){
-        next();
-    }if(validateUser.length === 0){
+    if(validateUser.length === 0 && adminPrivilege !==1){
         res.status(403).send('forbidden access')
+    }if(validateUser.length === 0 && adminPrivilege === 1){
+        next();
     }else{
         next()
     }
 }
 
-// async function validateInformationProvided(req, res, next){
-//     console.log(req.body)
-//     console.log(typeof req.body.user)
-//     if(req.body.user !== "string" || req.body.user === null){
-//         res.status(400).send("Campo obligatorio. Debe ser una combinacion de letras y numeros")
-//     }if(req.body.fullName !== "string" || req.body.fullName === null){
-//         res.status(400).send("Campo obligatorio. Debe ser su nombre real")
-//     }if(req.body.email.includes("@") === false || req.body.email === null){
-//         res.status(400).send("Email invalido")
-//     }if(isNan(req.body.telephone) === false || req.body.telephone === null){
-//         res.status(400).send("Telefono invalido")
-//     }
-// }
+async function validateSignUpInformation(req, res, next){
 
+    if(typeof req.body.user !== "string" || req.body.user === null){
+        res.status(400).send("username is an obligatory field. Must be a combination of letters and numbers")
+    }if(typeof req.body.fullName !== "string" || req.body.fullName === null){
+        res.status(400).send("fullname is an Obligatory field. Must be your real name")
+    }if(req.body.email.includes("@") === false || req.body.email === null){
+        res.status(400).send("Obligatory field. Must be an email")
+    }if(typeof req.body.telephone !== "number" || req.body.telephone === null){
+        res.status(400).send("Obligatory field. Must be yout real telephone")
+    }if(typeof req.body.address !== "string" || req.body.address === null){
+        res.status(400).send("Obligatory field. Must be a real address")
+    }else{
+        next()
+    }
+}
+
+async function userAlreadyExists(req, res, next){
+    const user = {
+        user: req.body.user,
+        email: req.body.email 
+    }
+    const userSearchEngine = await alreadyExist(user)
+    console.log(userSearchEngine.length)
+    if(userSearchEngine.length === 0){
+        next()
+    }else{
+        res.status(409).send('user or email already exists')
+
+    }
+
+}
+async function validateOrderingInformation(req, res, next){
+    const productsList = req.body.productsList
+    const isAnArray = Array.isArray(productsList)
+    if (isAnArray == true){
+        const validProducts = productsList.every(item => item.id && item.quantity > 0) 
+        if(validProducts === false || productsList.length === 0 ){
+            res.status(400).send("Invalid order information")
+        }else{
+            if(typeof req.body.total_payment !== "number" || req.body.total_payment === null){
+                res.status(400).send("Total amount must be a number")
+            }if(typeof req.body.payment !== "number" || req.body.payment === null){
+                res.status(400).send("Invalid payment method")
+            }if(typeof req.body.deliveryAddress !== "string" || req.body.deliveryAddress === null){
+                res.status(400).send("Delivery address is an obligatory field. Must be a combination of letters and numbers")
+            }else{
+                next()
+            } }
+}
+}
+
+async function validateNewProductInformation(req, res, next){
+    if(typeof req.body.name !== "string" || req.body.name === null){
+        res.status(400).send("product name is an obligatory field. Must be a character string")
+    }if(typeof req.body.price !== "number" || req.body.price === null){
+        res.status(400).send("product price is an obligatory field. Must be a number")
+    }if(typeof req.body.product_description !== "string" && req.body.product_description != null){
+        res.status(400).send("Product description must be a character string")
+    }if( req.body.product_description == null ){
+        next()
+    }else{
+        next()
+    }
+}
+
+async function validateUpdatedProductInformation(req, res, next){
+if(typeof req.body.product_description !== "string" && req.body.product_description != null){
+    res.status(400).send("Product description must be a character string")
+}if(typeof req.body.price !== "number" && req.body.price != null){
+    res.status(400).send("Product price must be a number")
+}if( req.body.product_description == null || req.body.price == null ){
+    next()
+}else{
+    next()
+}}
 app.use((err, req, res, next) => {
     console.log("Error");
     res.status(400).end();

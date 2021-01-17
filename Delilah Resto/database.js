@@ -9,16 +9,12 @@ const db = new Sequelize ("delilahresto", "root", "",{
 )
 
 
-async function alreadyExist(req, res, next){
+async function alreadyExist(user){
     const alreadyExist = await db.query(`SELECT * FROM users WHERE (user = :user) OR (email = :email)`,{
         type: QueryTypes.SELECT,
-        replacements: req.body
+        replacements: user
     })
-    if(Object.entries(alreadyExist) !=0){
-        res.status(400).send('user or email already exists')
-    }else{
-        next()
-    }
+    return alreadyExist
 }
 
 async function createUser(user, hash){
@@ -53,10 +49,10 @@ async function getProductsList(){
     SELECT name, price from products`, {
         type: QueryTypes.SELECT
     })
-    console.table(products)
+    return products
 }
 
-async function getOrdersList(orden){
+async function getOrdersList(){
     const joinProductQuantity = await db.query(`
     SELECT CONCAT(name, ' x ', quantity) AS description, order_id 
     FROM orders_and_products
@@ -72,20 +68,18 @@ async function getOrdersList(orden){
     orders.order_id,
     users.address,
     users.fullName,
-
+    order_state.state,
     payment_method.payment_method
     FROM orders
     INNER JOIN payment_method ON orders.payment = payment_method.id
     INNER JOIN users ON users.id = orders.user_id
-
-    ORDER BY orders.state ${orden}`, {
+    INNER JOIN order_state ON orders.state = order_state.id_state`, {
         type: QueryTypes.SELECT,
-        replacements: order
+
     })
-    console.log(joinProductQuantity)
 
     const mappedOrdersArray = orders.map( order => Object.assign({}, order, {description: joinProductQuantity.filter( product => product.order_id === order.order_id).map( product => product.description).join(", ")}))
-    console.table(mappedOrdersArray)
+    return mappedOrdersArray
 }
 
 async function addNewProduct(newProduct){
@@ -99,13 +93,13 @@ async function addNewProduct(newProduct){
     return product
 }
 async function deleteProduct(product){
+    console.log(product)
     const deletedproduct = await db.query(`
     DELETE FROM products WHERE id_product = :id
     `, {
         replacements: product,
         type: QueryTypes.DELETE
     })
-    // por que me carga mal la tabla?
 
 }
 
@@ -120,7 +114,6 @@ async function seeOrder(order){
         type: QueryTypes.SELECT,
         replacements: order
     })
-    console.log(joinProductQuantity)
     const seenOrder = await db.query(
         `SELECT 
         orders.order_id,
@@ -137,9 +130,9 @@ async function seeOrder(order){
         type: QueryTypes.SELECT,
         replacements: order
         })
-    console.log(seenOrder)
+
     const mappedOrderArray = seenOrder.map( order => Object.assign({}, order, {description: joinProductQuantity.filter( product => product.order_id === order.order_id).map( product => product.description).join(", ")}))
-    console.log(mappedOrderArray)
+
     return mappedOrderArray
 }
 async function cancelOrder(order){
@@ -175,26 +168,30 @@ async function makeAnOrder(userId, order){
     return productsArray
     }
 
-    const orderData = await transformOrderData(order)
-    console.log(orderData)
+    try{
+        const orderData = await transformOrderData(order)
+        console.log(orderData)
 
-    
-    const orderInformation = await db.query(`
-    INSERT INTO orders (state, payment, user_id, total_payment, delivery_address)
-    VALUES (1, :payment, :userId, :totalPrice, :deliveryAddress)
-    `, {
-        replacements: {'userId':userId, 'payment':order.payment, 'totalPrice':order.totalPrice, 'deliveryAddress': order.deliveryAddress},
-        type: QueryTypes.INSERT
-    })
-    console.log(orderInformation) 
-    
-    const orderId = orderInformation[0]
-    console.log(orderId)
-    const postOrder = await Promise.all(orderData.map(product => db.query(`
-        INSERT INTO orders_and_products (order_id, id_product, quantity)
-        VALUES (:order_id, :id_product, :quantity)
-        `, { replacements: {'order_id': orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
+        
+        const orderInformation = await db.query(`
+        INSERT INTO orders (state, payment, user_id, total_payment, delivery_address)
+        VALUES (1, :payment, :userId, :totalPrice, :deliveryAddress)
+        `, {
+            replacements: {'userId':userId, 'payment':order.payment, 'totalPrice':order.total_payment, 'deliveryAddress': order.deliveryAddress},
+            type: QueryTypes.INSERT
+        })
+        console.log(orderInformation) 
+        
+        const orderId = orderInformation[0]
+        console.log(orderId)
 
+        const postOrder = await Promise.all(orderData.map(product => db.query(`
+            INSERT INTO orders_and_products (order_id, id_product, quantity)
+            VALUES (:order_id, :id_product, :quantity)
+            `, { replacements: {'order_id': orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
+    } catch(error){
+        return false 
+    }
 }
 
 async function updateProduct(product){
@@ -206,7 +203,7 @@ async function updateProduct(product){
             replacements: product
         }
     )
-    return updatedProduct
+    console.log(updatedProduct)
 }
 
 async function seeProduct(product){
@@ -217,7 +214,6 @@ async function seeProduct(product){
         type: QueryTypes.SELECT,
         replacements: product
         })
-    console.log(shownProduct)
     return shownProduct
 }
 
