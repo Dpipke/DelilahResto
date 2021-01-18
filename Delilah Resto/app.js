@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv').config();
 
-const {createUser} = require(`./database`)
+const {createUser, validateIfExists} = require(`./database`)
 const {alreadyExist} = require(`./database`)
 const {getProductsList} = require(`./database`)
 const {getUser} = require(`./database`)
@@ -163,8 +163,13 @@ app.put('/products/:id', filterAdmin, validateUpdatedProductInformation, async (
         product_description: req.body.product_description,
         price: +req.body.price
     }
-    const updatedProduct = await updateProduct(product)
-    res.status(200).send(updatedProduct)
+    const validId = await validateIfExists(product.id,'products', 'id_products')
+    if(validId.length === 1){
+        const updatedProduct = await updateProduct(product)
+        res.status(200).send(updatedProduct)
+    }else{
+        res.status(404).send("Product not found")   
+    }
 
 })
 
@@ -174,8 +179,13 @@ app.delete('/products/:id',filterAdmin, async (req, res) =>{
     const product = {
         id: +req.params.id
     }
-    const deletedProduct = await deleteProduct(product)
-    res.status(200).send("Product succesfully deleted")
+    const validId = await validateIfExists(product,'products', 'id_products')
+    if(validId.length === 1){
+        const deletedProduct = await deleteProduct(product)
+        res.status(200).send("Product succesfully deleted")
+    }else{
+        res.status(404).send("Product not found")   
+    }
 })
 
 // get order
@@ -183,44 +193,60 @@ app.get('/orders/:id', validatePermission, async (req, res)=>{
     const orderParameters ={
         id: +req.params.id
     }
-    const order = await seeOrder(orderParameters)
-    res.status(201).send(order)
+    const validId = await validateIfExists(orderParameters,'orders', 'order_id')
+    if(validId.length === 1){
+        const order = await seeOrder(orderParameters)
+        res.status(201).send(order)
+    }else{
+        res.status(404).send("Order not found")   
+    }
     
 })
 
-// cambiar  pedido
-app.put('/orders/:id', validatePermission, (req, res)=>{
+// update order
+app.put('/orders/:id', validatePermission, validateUpdatedOrderInformation, async (req, res)=>{
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
     const adminPrivilege = user.user[0].admin
-    if(adminPrivilege === 1){
-        const state ={
-            stateId : req.body.stateId,
-            orderId : req.params.id
-        }
-        changeOrderState(state)
-        res.status(200).end()
-    }else{
-        const orderToModify ={
-            orderId : req.params.id,
-            payment : req.body.payment,
-            total_payment : req.body.total_payment,
-            productsList : req.body.productsList
+    const order = req.params.id
+    const validId = await validateIfExists(order,'orders', 'order_id')
+    if(validId.length === 1){
+        if(adminPrivilege === 1){
+            const state ={
+                stateId : +req.body.stateId,
+                orderId : req.params.id
+            }
+            changeOrderState(state)
+            res.status(200).send("Order state succesfully updated")
+        }else{
+            const orderToModify ={
+                orderId : +req.params.id,
+                payment : req.body.payment,
+                total_payment : req.body.total_payment,
+                productsList : req.body.productsList
 
+            }
+            updateOrderInformation(orderToModify)
+            res.status(200).send("Order state succesfully updated")
         }
-        updateOrderInformation(orderToModify)
-        res.status(200).end()
+    }else{
+        res.status(404).send("Order not found")
     }
     
 })
 
-// cancelar un pedido
-app.delete('/orders/:id', filterAdmin, (req, res)=>{
+// cancel an order
+app.delete('/orders/:id', filterAdmin, async (req, res)=>{
     const order ={
         id: req.params.id
     }
-    cancelOrder(order)
-    res.status(201).json()
+    const validId = await validateIfExists(order,'orders', 'order_id')
+    if(validId.length === 1){
+        cancelOrder(order)
+        res.status(201).send("Order cancelled")
+    }else{
+        res.status(404).send("Order not found")
+    }
 
 })
 
@@ -335,3 +361,26 @@ app.use((err, req, res, next) => {
     console.log("Error");
     res.status(400).end();
 })
+
+async function validateUpdatedOrderInformation(req, res, next){
+    const productsList = req.body.productsList
+    const isAnArray = Array.isArray(productsList)
+
+    if(typeof req.body.stateId !== "number" && req.body.stateId != null){
+        res.status(400).send("Order state reference invalid")
+    }if(typeof req.body.payment !== "number" && req.body.payment != null){
+        res.status(400).send("Order state reference invalid")
+    }if(typeof req.body.total_payment !== "number" && req.body.total_payment != null){
+        res.status(400).send("Product price must be a number")
+    }if (productsList != null && isAnArray == true){
+        const validProducts = productsList.every(item => item.id && item.quantity > 0) 
+        if(validProducts === false || productsList.length === 0 ){
+            res.status(400).send("Invalid order information")
+        }
+    }if(isAnArray == false){
+        res.status(400).send("Invalid order information")
+    }else{
+        next()
+    }
+
+}

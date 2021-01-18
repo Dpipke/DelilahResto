@@ -142,6 +142,12 @@ async function cancelOrder(order){
         replacements: order,
         type: QueryTypes.DELETE
     })
+    const cancelProductsOrder = await db.query(`
+    DELETE FROM orders_and_products WHERE order_id= :id
+    `, {
+        replacements: order,
+        type: QueryTypes.DELETE
+    })
 }
 
 
@@ -242,22 +248,29 @@ async function updateOrderInformation(order){
         }
     )
     const newProductsList = order.productsList
-     
-    const deleteOldProducts = await db.query(
-        `DELETE FROM orders_and_products
-        WHERE (order_id = :orderId)`,
-        {
-        type: QueryTypes.DELETE,
-        replacements: order
-        })
+    if(order.productsList != null){ 
+        const deleteOldProducts = await db.query(
+            `DELETE FROM orders_and_products
+            WHERE (order_id = :orderId)`,
+            {
+            type: QueryTypes.DELETE,
+            replacements: order
+            })
 
-    const addNewProducts = await Promise.all(newProductsList.map(product => db.query(`
-        INSERT INTO orders_and_products (order_id, id_product, quantity)
-        VALUES (:order_id, :id_product, :quantity)
-        `, { replacements: {'order_id': order.orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
-
+        const addNewProducts = await Promise.all(newProductsList.map(product => db.query(`
+            INSERT INTO orders_and_products (order_id, id_product, quantity)
+            VALUES (:order_id, :id_product, :quantity)
+            `, { replacements: {'order_id': order.orderId,'id_product': product.id, 'quantity': product.quantity}, type: QueryTypes.INSERT})))
+        }
 }
 
+async function validateIfExists(id, table, column_name){
+    const idToLook = await db.query(`SELECT * FROM ${table} WHERE (${column_name} = :id)`,{
+        type: QueryTypes.SELECT,
+        replacements: id
+    })
+    return idToLook
+}
 module.exports = {
     createUser,
     alreadyExist,
@@ -273,5 +286,6 @@ module.exports = {
     makeAnOrder, 
     seeProduct,
     updateProduct,
-    updateOrderInformation
+    updateOrderInformation,
+    validateIfExists
 }
