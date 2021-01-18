@@ -202,6 +202,7 @@ async function makeAnOrder(userId, order){
 
 async function updateProduct(product){
     const set = Object.keys(product).filter(key => product[key] != null && key != "id").map(key => `${key} = :${key}`).join(",")
+    console.log(set)
     const query = `UPDATE products SET ${set} WHERE id_product = :id` 
     const updatedProduct = await db.query(query,
         {
@@ -240,13 +241,16 @@ async function validateUserAccess(id, orderId){
 
 async function updateOrderInformation(order){
     const set = Object.keys(order).filter(key => order[key] != null && key != "orderId" && key != "productsList").map(key => `${key} = :${key}`).join(",")
+    if(set != ""){
     const query = `UPDATE orders SET ${set} WHERE (order_id = :orderId)` 
+    console.log(query)
     const updatedOrder = await db.query(query,
         {
             type: QueryTypes.UPDATE,
             replacements: order
         }
     )
+    }
     const newProductsList = order.productsList
     if(order.productsList != null){ 
         const deleteOldProducts = await db.query(
