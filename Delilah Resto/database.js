@@ -202,7 +202,7 @@ async function makeAnOrder(userId, order){
 
 async function updateProduct(product){
     const set = Object.keys(product).filter(key => product[key] != null && key != "id").map(key => `${key} = :${key}`).join(",")
-    console.log(set)
+    console.log(product)
     const query = `UPDATE products SET ${set} WHERE id_product = :id` 
     const updatedProduct = await db.query(query,
         {

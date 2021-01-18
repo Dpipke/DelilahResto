@@ -161,7 +161,7 @@ app.put('/products/:id', filterAdmin, validateUpdatedProductInformation, async (
     const product = {
         id: +req.params.id,
         product_description: req.body.product_description,
-        price: +req.body.price
+        price: req.body.price
     }
     const validId = await validateIfExists(product,'products', 'id_product')
     if(validId.length === 1){
@@ -223,7 +223,6 @@ app.put('/orders/:id', validatePermission, validateUpdatedOrderInformation, asyn
         }else{
             const orderToModify ={
                 orderId : +req.params.id,
-                payment : req.body.payment,
                 total_payment : req.body.total_payment,
                 productsList : req.body.productsList
 
