@@ -163,7 +163,7 @@ app.put('/products/:id', filterAdmin, validateUpdatedProductInformation, async (
         product_description: req.body.product_description,
         price: +req.body.price
     }
-    const validId = await validateIfExists(product.id,'products', 'id_products')
+    const validId = await validateIfExists(product,'products', 'id_product')
     if(validId.length === 1){
         const updatedProduct = await updateProduct(product)
         res.status(200).send(updatedProduct)
@@ -179,7 +179,7 @@ app.delete('/products/:id',filterAdmin, async (req, res) =>{
     const product = {
         id: +req.params.id
     }
-    const validId = await validateIfExists(product,'products', 'id_products')
+    const validId = await validateIfExists(product,'products', 'id_product')
     if(validId.length === 1){
         const deletedProduct = await deleteProduct(product)
         res.status(200).send("Product succesfully deleted")
@@ -208,13 +208,15 @@ app.put('/orders/:id', validatePermission, validateUpdatedOrderInformation, asyn
     const token = req.headers.authorization.split(' ')[1];
     const user = jwt.verify(token, authorizationPassword);
     const adminPrivilege = user.user[0].admin
-    const order = req.params.id
+    const order = { 
+        id: +req.params.id
+    }
     const validId = await validateIfExists(order,'orders', 'order_id')
     if(validId.length === 1){
         if(adminPrivilege === 1){
             const state ={
                 stateId : +req.body.stateId,
-                orderId : req.params.id
+                orderId : +req.params.id
             }
             changeOrderState(state)
             res.status(200).send("Order state succesfully updated")
@@ -377,7 +379,7 @@ async function validateUpdatedOrderInformation(req, res, next){
         if(validProducts === false || productsList.length === 0 ){
             res.status(400).send("Invalid order information")
         }
-    }if(isAnArray == false){
+    }if(productsList != null && isAnArray == false){
         res.status(400).send("Invalid order information")
     }else{
         next()

@@ -240,7 +240,7 @@ async function validateUserAccess(id, orderId){
 
 async function updateOrderInformation(order){
     const set = Object.keys(order).filter(key => order[key] != null && key != "orderId" && key != "productsList").map(key => `${key} = :${key}`).join(",")
-    const query = `UPDATE orders SET ${set} WHERE order_id = :orderId` 
+    const query = `UPDATE orders SET ${set} WHERE (order_id = :orderId)` 
     const updatedOrder = await db.query(query,
         {
             type: QueryTypes.UPDATE,
@@ -265,6 +265,7 @@ async function updateOrderInformation(order){
 }
 
 async function validateIfExists(id, table, column_name){
+    console.log(id)
     const idToLook = await db.query(`SELECT * FROM ${table} WHERE (${column_name} = :id)`,{
         type: QueryTypes.SELECT,
         replacements: id
