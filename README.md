@@ -21,6 +21,6 @@ cd delilah_project
 
 Installing all dependences: npm install
 
-Run the server by using the following command in the shell (must be inside /delilahResto): npm run app.js
+Run the server by using the following command in the shell (must be inside /DelilahResto): npm run app.js
 
 Run in mysql workbrench the /database.sql before using the app
