@@ -26,12 +26,12 @@ cd delilah_project
 - Run the server by using the following command in the shell (must be inside /DelilahResto): npm run app.js
 - Set authentication password, database name, user, password, localhost, port in a dotenv file as
 
->AuthPassword = \<jwt authetication password>
->DB = \<database name>
->DBUSER = \<database user name>
->DBPASS = \<database user password>
->DBHOST = \<database localhost>
->DBPORT = \<database port>
+>AuthPassword = \<jwt authetication password>  
+>DB = \<database name>  
+>DBUSER = \<database user name>  
+>DBPASS = \<database user password>  
+>DBHOST = \<database localhost>  
+>DBPORT = \<database port>  
 
 
 - Run in mysql workbrench the /database.sql before using the app
