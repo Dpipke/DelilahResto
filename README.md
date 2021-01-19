@@ -4,9 +4,9 @@ This project is an online ordering system for a restaurant. The objective was th
 Implementation
 
 - Node.js
-    Nodemon Library
+    (Nodemon Library
     Express Library
-    Sequelize Library
+    Sequelize Library)
 - Json Web Token (JWT)
 - MySQL
 
