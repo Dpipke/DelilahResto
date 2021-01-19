@@ -1,13 +1,14 @@
 const {Sequelize} = require("sequelize")
 const { QueryTypes } = require("sequelize")
+const dotenv = require('dotenv').config();
 
-const db = new Sequelize ("delilahresto", "root", "",{
-    host: "localhost",
-    port: 3306,
+
+const db = new Sequelize (process.env.database, process.env.databaseUser, process.env.databasePassword,{
+    host: process.env.databaseHost,
+    port: process.env.port,
     dialect: "mysql"
 }
 )
-
 
 async function alreadyExist(user){
     const alreadyExist = await db.query(`SELECT * FROM users WHERE (user = :user) OR (email = :email)`,{

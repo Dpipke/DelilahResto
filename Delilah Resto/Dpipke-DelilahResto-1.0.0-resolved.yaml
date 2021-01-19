@@ -1,0 +1,548 @@
+---
+swagger: "2.0"
+info:
+  description: Restaurant ordering system
+  version: 1.0.0
+  title: Delilah Resto
+  contact:
+    email: dfpipke22@ucema.edu.ar
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+host: virtserver.swaggerhub.com
+basePath: /Dpipke/DelilahResto/1.0.0
+tags:
+- name: admin
+  description: Operations available to restaurant managers
+- name: user
+  description: Operations available to restaurant customers
+schemes:
+- https
+paths:
+  /login:
+    post:
+      tags:
+      - users
+      - admin
+      summary: users login
+      description: |
+        By passing the correct user or email and password, you login into your account
+      operationId: usersLogin
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: loginRequest
+        description: pass an username or email for looking up in database
+        required: false
+        schema:
+          $ref: '#/definitions/UserLogin'
+      responses:
+        "201":
+          description: success login
+          schema:
+            $ref: '#/definitions/loginToken'
+        "400":
+          description: incorrect user or password
+      security:
+      - bearerAuth: []
+  /signup:
+    post:
+      tags:
+      - users
+      - admin
+      summary: create new user
+      description: by passing the required parameters, you can create a new user
+      operationId: createUser
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: user
+        description: new user information
+        required: true
+        schema:
+          $ref: '#/definitions/createUser'
+      responses:
+        "201":
+          description: user created
+        "400":
+          description: invalid input
+        "409":
+          description: an existing user has already been created
+      security:
+      - bearerAuth: []
+  /products:
+    get:
+      tags:
+      - users
+      - admin
+      summary: get products list
+      description: get products list
+      operationId: getProductsList
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters: []
+      responses:
+        "200":
+          description: products list successful gotten
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/getProductsList'
+        "400":
+          description: error
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - admin
+      summary: post a new product
+      description: by passing the required parameters, you can add a new product to the list
+      operationId: addNewProduct
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: product
+        description: new product
+        required: true
+        schema:
+          $ref: '#/definitions/addNewProduct'
+      responses:
+        "201":
+          description: product created
+        "400":
+          description: invalid input
+      security:
+      - bearerAuth: []
+  /products/{id}:
+    get:
+      tags:
+      - users
+      - admin
+      summary: get information about an especific product
+      description: by passing product's id as a path parameter, you can get information about an specific product
+      operationId: getProduct
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: product id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: product information successful gotten
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/getProduct'
+        "404":
+          description: product not found
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - admin
+      summary: update information about an especific product
+      description: by passing product's id as a path parameter, you can update information about that specific product
+      operationId: postProduct
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: product id
+        required: true
+        type: integer
+      - in: body
+        name: product
+        description: update product
+        required: false
+        schema:
+          $ref: '#/definitions/updateProduct'
+      responses:
+        "200":
+          description: product successfully updated
+        "400":
+          description: invalid input
+        "404":
+          description: product not found
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - admin
+      summary: update information about an especific product
+      description: by passing product's id as a path parameter, you can update information about that specific product
+      operationId: deleteProduct
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: product id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: product successfully deleted
+        "400":
+          description: invalid input
+        "404":
+          description: product not found
+      security:
+      - bearerAuth: []
+  /orders:
+    get:
+      tags:
+      - admin
+      summary: get orders list
+      description: get orders list
+      operationId: getOrderList
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters: []
+      responses:
+        "200":
+          description: orders list successful gotten
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/getOrdersList'
+        "403":
+          description: forbbiden access
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - users
+      - admin
+      summary: create a new order
+      description: by passing the required parameters, you can create a new order
+      operationId: createOrder
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: order
+        description: new user information
+        required: true
+        schema:
+          $ref: '#/definitions/createOrder'
+      - name: userId
+        in: header
+        description: user id from token
+        required: true
+        type: integer
+      responses:
+        "201":
+          description: order created
+        "400":
+          description: error
+      security:
+      - bearerAuth: []
+  /orders/{id}:
+    get:
+      tags:
+      - users
+      - admin
+      summary: get information about an specific order
+      description: by passing order's id as a path parameter, you can get information about that especific order
+      operationId: getOrder
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: order id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: order information successful gotten
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/getOrder'
+        "404":
+          description: order not found
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - users
+      - admin
+      summary: update an order
+      description: by passing the required parameters, you can update an existing order
+      operationId: updateOrder
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: order id
+        required: true
+        type: integer
+      - in: body
+        name: state
+        description: update order. Only the admin can update the order state
+        required: true
+        schema:
+          $ref: '#/definitions/updateOrder'
+      responses:
+        "201":
+          description: order created
+        "400":
+          description: error
+        "404":
+          description: order not found
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - admin
+      summary: delete an order
+      description: by passing order's id as a path parameter, you can delete it
+      operationId: deleteOrder
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - name: id
+        in: path
+        description: order id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: order deleted
+        "404":
+          description: order not found
+      security:
+      - bearerAuth: []
+securityDefinitions:
+  bearerAuth:
+    description: Enter your bearer token in the format JWT
+    type: apiKey
+    name: Authorization
+    in: header
+definitions:
+  UserLogin:
+    type: object
+    required:
+    - password
+    - user
+    properties:
+      user:
+        type: string
+        example: juan1
+      password:
+        type: string
+  loginToken:
+    type: object
+    properties:
+      data:
+        type: string
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZnVsbG5hbWUiOiJKb25hdGhhbiBKaW1lbmV6IFMiLCJlbWFpbCI6Imp0YTEyMjNAZ21haWwuY29tIiwicGhvbmUiOiIzMTY4ODUwNDk3IiwiYWRkcmVzcyI6IkNsbCA4MCBTIDYwIDU0IiwiaXNBZG1pbiI6MSwiYWN0aXZlIjoxLCJpYXQiOjE2MDcxMzQyOTl9.4tJARNhqGCiMZ6iGh_lob2r39WKyCv0cnKQGjnA_r5c
+  createUser:
+    type: object
+    required:
+    - address
+    - email
+    - fullName
+    - password
+    - telephone
+    - user
+    properties:
+      user:
+        type: string
+        example: juan1
+      fullName:
+        type: string
+        example: Juan Cruz Calzon
+      email:
+        type: string
+        format: email
+        example: juancruz@calzon.com
+      telephone:
+        type: integer
+        example: 1156547623
+      address:
+        type: string
+        example: calle falsa 123
+      password:
+        type: string
+        example: hola123
+  getProductsList:
+    type: array
+    items:
+      $ref: '#/definitions/getProductsList_inner'
+  getProduct:
+    type: object
+    properties:
+      name:
+        type: string
+        example: salad
+      price:
+        type: integer
+        example: 180
+      product_description:
+        type: string
+        example: lettuce and tomatoes
+  getOrder:
+    type: object
+    properties:
+      order_id:
+        type: integer
+        example: 70
+      state:
+        type: string
+        example: Nuevo
+      total_payment:
+        type: integer
+        example: 180
+      payment_method:
+        type: string
+        example: Efectivo
+      address:
+        type: string
+        example: calle falsa 123
+      description:
+        type: string
+        example: 3 x sanguches
+  createOrder:
+    type: object
+    required:
+    - deliveryAddress
+    - payment
+    - productsList
+    - total_payment
+    properties:
+      total_payment:
+        type: integer
+        example: 300
+      payment:
+        type: integer
+        example: 1
+      productsList:
+        type: array
+        example:
+        - id: 1
+          quantity: 2
+        - id: 4
+          quantity: 3
+        items:
+          $ref: '#/definitions/createOrder_productsList'
+      deliveryAddress:
+        type: string
+        example: calle falsa 123
+  getOrdersList:
+    type: array
+    items:
+      $ref: '#/definitions/getOrdersList_inner'
+  addNewProduct:
+    type: object
+    required:
+    - name
+    - price
+    properties:
+      name:
+        type: string
+        example: salad
+      price:
+        type: integer
+        example: 180
+      product_description:
+        type: string
+        example: lettuce and tomatoes
+  updateProduct:
+    type: object
+    properties:
+      price:
+        type: integer
+        example: 180
+      product_description:
+        type: string
+        example: lettuce and tomatoes
+  updateOrder:
+    type: object
+    required:
+    - orderId
+    - stateId
+    properties:
+      orderId:
+        type: integer
+        example: 180
+      stateId:
+        type: integer
+        example: 1
+      payment:
+        type: integer
+        example: 2
+      total_payment:
+        type: integer
+        example: 130
+      productsList:
+        type: array
+        example:
+        - id: 1
+          quantity: 2
+        - id: 4
+          quantity: 3
+        items:
+          $ref: '#/definitions/createOrder_productsList'
+  getProductsList_inner:
+    type: object
+    properties:
+      name:
+        type: string
+        example: salad
+      price:
+        type: integer
+        example: 180
+    example: '{"name":"salad","price":180,"product_description":"lettuce and tomatoes"}'
+  createOrder_productsList:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int32
+        example: 1
+      quantity:
+        type: integer
+        format: int32
+        example: 2
+  getOrdersList_inner:
+    type: object
+    properties:
+      state:
+        type: integer
+        format: int32
+        example: 1
+      hour:
+        type: string
+        example: 12:34:20

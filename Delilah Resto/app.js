@@ -223,7 +223,7 @@ app.put('/orders/:id', validatePermission, validateUpdatedOrderInformation, asyn
         }else{
             const orderToModify ={
                 orderId : +req.params.id,
-                total_payment : req.body.total_payment,
+                payment : req.body.payment,
                 productsList : req.body.productsList
 
             }
