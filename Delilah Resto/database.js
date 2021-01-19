@@ -3,9 +3,9 @@ const { QueryTypes } = require("sequelize")
 const dotenv = require('dotenv').config();
 
 
-const db = new Sequelize (process.env.database, process.env.databaseUser, process.env.databasePassword,{
-    host: process.env.databaseHost,
-    port: process.env.port,
+const db = new Sequelize (process.env.DB, process.env.DBUSER, process.env.DBPASS,{
+    host: process.env.DBHOST,
+    port: process.env.DBPORT,
     dialect: "mysql"
 }
 )
